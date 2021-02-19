@@ -23,6 +23,7 @@ class MarketoClient:
     scope = None
     last_request_id = None  # intended to save last request id, but not used right now
 
+
     def __init__(self, munchkin_id, client_id, client_secret, api_limit=None, max_retry_time=300):
         assert(munchkin_id is not None)
         assert(client_id is not None)
@@ -151,7 +152,6 @@ class MarketoClient:
                     'clone_email': self.clone_email,
                     'send_sample_email': self.send_sample_email,
                     'get_email_full_content': self.get_email_full_content,
-                    'update_email_full_content': self.update_email_full_content,
                     'create_landing_page': self.create_landing_page,
                     'get_landing_page_by_id': self.get_landing_page_by_id,
                     'get_landing_page_by_name': self.get_landing_page_by_name,
@@ -268,16 +268,21 @@ class MarketoClient:
                     'delete_custom_activity_type_attribute': self.delete_custom_activity_type_attribute,
                     'get_leads_export_jobs_list': self.get_leads_export_jobs_list,
                     'get_activities_export_jobs_list': self.get_activities_export_jobs_list,
+                    'get_programMembership_export_jobs_list': self.get_programMembership_export_jobs_list,
                     'create_leads_export_job': self.create_leads_export_job,
                     'create_activities_export_job': self.create_activities_export_job,
+                    'create_programMembership_export_job': self.create_programMembership_export_job,
                     'enqueue_leads_export_job': self.enqueue_leads_export_job,
                     'enqueue_activities_export_job': self.enqueue_activities_export_job,
+                    'enqueue_programMembership_export_job': self.enqueue_programMembership_export_job,
                     'cancel_leads_export_job': self.cancel_leads_export_job,
                     'cancel_activities_export_job': self.cancel_activities_export_job,
                     'get_leads_export_job_status': self.get_leads_export_job_status,
                     'get_activities_export_job_status': self.get_activities_export_job_status,
+                    'get_programMembership_export_job_status': self.get_programMembership_export_job_status,
                     'get_leads_export_job_file': self.get_leads_export_job_file,
                     'get_activities_export_job_file': self.get_activities_export_job_file,
+                    'get_programMembership_export_job_file': self.get_programMembership_export_job_file,
                     'get_named_accounts': self.get_named_accounts,
                     'sync_named_accounts': self.sync_named_accounts,
                     'delete_named_accounts': self.delete_named_accounts,
@@ -2180,7 +2185,7 @@ class MarketoClient:
             raise Exception("Empty Response")
         return result['result']
 
-    def update_email(self, id, name=None, description=None, preHeader=None, operational=None, published=None, textOnly=None, webView=None):
+    def update_email(self, id, name=None, description=None):
         self.authenticate()
         if id is None:
             raise ValueError("Invalid argument: required argument id is none.")
@@ -2191,16 +2196,6 @@ class MarketoClient:
             args['name'] = name
         if description is not None:
             args['description'] = description
-        if preHeader is not None:
-            args['preHeader'] = preHeader
-        if operational is not None:
-            args['operational'] = operational
-        if published is not None:
-            args['published'] = published
-        if textOnly is not None:
-            args['textOnly'] = textOnly
-        if webView is not None:
-            args['webView'] = webView
         result = self._api_call(
             'post', self.host + "/rest/asset/v1/email/" + str(id) + ".json", args)
         if result is None:
@@ -2507,21 +2502,6 @@ class MarketoClient:
             args['type'] = type
         result = self._api_call(
             'get', self.host + "/rest/asset/v1/email/" + str(id) + "/fullContent.json", args)
-        if result is None:
-            raise Exception("Empty Response")
-        return result['result']
-
-    def update_email_full_content(self, id, content):
-        self.authenticate()
-        if id is None:
-            raise ValueError("Invalid argument: required argument id is none.")
-        if content is None:
-            raise ValueError("Invalid argument: required argument content is none.")
-        args = {
-            'access_token': self.token,
-        }
-        result = self._api_call(
-            'post', self.host + "/rest/asset/v1/email/" + str(id) + "/fullContent.json", args, files=content, filename="content")
         if result is None:
             raise Exception("Empty Response")
         return result['result']
@@ -4171,7 +4151,7 @@ class MarketoClient:
             raise Exception("Empty Response")
         return result['result']
 
-    def get_program_by_tag_type(self, tagType, tagValue, maxReturn=20):
+    def get_program_by_tag_type(self, tagType, tagValue):
         self.authenticate()
         if tagType is None:
             raise ValueError(
@@ -4182,27 +4162,13 @@ class MarketoClient:
         args = {
             'access_token': self.token,
             'tagType': tagType,
-            'tagValue': tagValue,
-            'maxReturn': maxReturn
+            'tagValue': tagValue
         }
-        result_list = []
-        offset = 0
-        while True:
-            self.authenticate()
-            args['access_token'] = self.token
-            result = self._api_call('get', self.host + "/rest/asset/v1/program/byTag.json", args)
-            if result is None:
-                raise Exception("Empty Response")
-            if 'result' in result:
-                if len(result['result']) < maxReturn:
-                    result_list.extend(result['result'])
-                    break
-            else:
-                break
-            result_list.extend(result['result'])
-            offset += maxReturn
-            args['offset'] = offset
-        return result_list
+        result = self._api_call(
+            'get', self.host + "/rest/asset/v1/program/byTag.json", args)
+        if result is None:
+            raise Exception("Empty Response")
+        return result['result']
 
     def update_program(self, id, name=None, description=None, tags=None):
         self.authenticate()
@@ -5181,11 +5147,17 @@ class MarketoClient:
     def get_activities_export_job_file(self, *args, **kargs):
         return self._export_job_state_machine('activities', 'file', *args, **kargs)
 
+    def get_programMembership_export_job_file(self, *args, **kargs):
+        return self._export_job_state_machine('program/members','file',*args,**kargs)
+
     def get_leads_export_job_status(self, *args, **kargs):
         return self._export_job_state_machine('leads', 'status', *args, **kargs)
 
     def get_activities_export_job_status(self, *args, **kargs):
         return self._export_job_state_machine('activities', 'status', *args, **kargs)
+
+    def get_programMembership_export_job_status(self,*args,**kargs):
+        return self._export_job_state_machine('program/members', 'status', *args, **kargs)
 
     def cancel_leads_export_job(self, *args, **kargs):
         return self._export_job_state_machine('leads', 'cancel', *args, **kargs)
@@ -5199,11 +5171,20 @@ class MarketoClient:
     def enqueue_activities_export_job(self, *args, **kargs):
         return self._export_job_state_machine('activities', 'enqueue', *args, **kargs)
 
+    def enqueue_programMembership_export_job(self, *args, **kargs):
+        return self._export_job_state_machine('program/members', 'enqueue', *args, **kargs)
+
     def create_leads_export_job(self, *args, **kargs):
         return self._create_bulk_export_job('leads', *args, **kargs)
 
     def create_activities_export_job(self, *args, **kargs):
         return self._create_bulk_export_job('activities', *args, **kargs)
+
+    def create_programMembership_export_job(self, *args, **kargs):
+        return self._create_bulk_export_job('program/members', *args, **kargs)
+
+    def get_programMembership_export_jobs_list(self):
+        return self._get_export_jobs_list('program/members')
 
     def get_leads_export_jobs_list(self):
         return self._get_export_jobs_list('leads')
